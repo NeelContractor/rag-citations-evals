@@ -175,6 +175,12 @@ def test_highlight_normalizes_whitespace():
     assert "<mark>two\nthree</mark>" in highlighted
 
 
+def test_highlight_matches_pdf_hyphenated_line_break():
+    highlighted = highlight_quote_html("model: bge-reranker-\nv2-m3.", "bge-reranker-v2-m3")
+
+    assert "<mark>bge-reranker-\nv2-m3</mark>" in highlighted
+
+
 def test_highlight_escapes_html_when_quote_is_missing():
     highlighted = highlight_quote_html("<b>safe</b>", "absent")
 

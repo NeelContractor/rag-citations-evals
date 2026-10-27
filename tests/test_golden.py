@@ -91,6 +91,24 @@ def test_map_evidence_falls_back_to_token_coverage():
     assert map_evidence_to_chunks(evidence, chunks) == {"c1"}
 
 
+def test_map_evidence_matches_across_pdf_hyphenated_line_break():
+    chunks = [
+        make_chunk(
+            "c1",
+            doc="paper.pdf",
+            page=2,
+            text="Dense: Qwen3-Embedding-8B; BGE: bge-reranker-\nv2-m3.",
+        )
+    ]
+    evidence = Evidence(
+        doc="paper.pdf",
+        page=2,
+        quote="Dense: Qwen3-Embedding-8B; BGE: bge-reranker-v2-m3.",
+    )
+
+    assert map_evidence_to_chunks(evidence, chunks) == {"c1"}
+
+
 def test_map_evidence_rejects_low_coverage():
     chunks = [make_chunk("c1", text="only retrieval appears here")]
     evidence = Evidence(doc="guide.md", quote="retrieval combines search and generation")

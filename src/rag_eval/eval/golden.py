@@ -7,7 +7,7 @@ from pathlib import Path
 import lancedb
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from rag_eval.generation.citations import normalize_whitespace
+from rag_eval.generation.citations import normalize_for_matching, normalize_whitespace
 from rag_eval.retrieval.types import RetrievedChunk
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -98,14 +98,14 @@ def map_evidence_to_chunks(evidence: Evidence, chunks: list[RetrievedChunk]) -> 
     if not candidates:
         return set()
 
-    quote = normalize_whitespace(evidence.quote).casefold()
+    quote = normalize_for_matching(evidence.quote).casefold()
     if not quote:
         return set()
 
     exact = {
         chunk.chunk_id
         for chunk in candidates
-        if quote in normalize_whitespace(chunk.text).casefold()
+        if quote in normalize_for_matching(chunk.text).casefold()
     }
     if exact:
         return exact

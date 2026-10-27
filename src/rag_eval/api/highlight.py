@@ -11,6 +11,7 @@ def highlight_quote_html(text: str, quote: str) -> str:
         return escaped_text
 
     parts = [re.escape(part) for part in escaped_quote.split()]
+    parts = [part.replace("-", r"-\s*") for part in parts]
     pattern = re.compile(r"\s+".join(parts), re.IGNORECASE)
     match = pattern.search(escaped_text)
     if match is None:

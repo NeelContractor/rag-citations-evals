@@ -29,6 +29,29 @@ def test_quote_matches_after_whitespace_normalization():
     assert quote_in_chunk("combines   retrieval\nand", chunk().text)
 
 
+def test_quote_matches_across_pdf_hyphenated_line_break():
+    text = "Dense: Qwen3-Embedding-8B; BGE: bge-reranker-\nv2-m3."
+    assert quote_in_chunk("Dense: Qwen3-Embedding-8B; BGE: bge-reranker-v2-m3.", text)
+
+
+def test_verify_accepts_pdf_hyphenated_quote():
+    text = "Dense: Qwen3-Embedding-8B; BGE: bge-reranker-\nv2-m3."
+    answer = LLMAnswer(
+        answer="The dense model is Qwen3-Embedding-8B.",
+        citations=[
+            Citation(
+                chunk_id="c1",
+                quote="Dense: Qwen3-Embedding-8B; BGE: bge-reranker-v2-m3.",
+            )
+        ],
+    )
+    verified = verify_citations(answer, [chunk(text=text)])
+
+    assert not verified.refused
+    assert verified.invalid_citations == []
+    assert verified.citations[0].quote == ("Dense: Qwen3-Embedding-8B; BGE: bge-reranker-v2-m3.")
+
+
 def test_quote_matching_is_case_insensitive():
     assert quote_in_chunk("RETRIEVAL-AUGMENTED GENERATION", chunk().text)
 

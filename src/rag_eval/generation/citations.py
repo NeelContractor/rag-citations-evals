@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from rag_eval.retrieval.types import RetrievedChunk
 
 REFUSAL_ANSWER = "I don't have enough information in the provided sources to answer that question."
 MIN_QUOTE_CHARS = 3
+_HYPHEN_LINEBREAK = re.compile(r"-\s*\n\s*")
 
 
 class Citation(BaseModel):
@@ -46,9 +48,15 @@ def normalize_whitespace(text: str) -> str:
     return " ".join(text.split())
 
 
+def normalize_for_matching(text: str) -> str:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = _HYPHEN_LINEBREAK.sub("-", text)
+    return normalize_whitespace(text)
+
+
 def quote_in_chunk(quote: str, chunk_text: str) -> bool:
-    normalized_quote = normalize_whitespace(quote).casefold()
-    normalized_chunk = normalize_whitespace(chunk_text).casefold()
+    normalized_quote = normalize_for_matching(quote).casefold()
+    normalized_chunk = normalize_for_matching(chunk_text).casefold()
     return bool(normalized_quote) and normalized_quote in normalized_chunk
 
 
@@ -88,7 +96,7 @@ def verify_citations(
             invalid.append(InvalidCitation(citation=citation, reason="unknown_chunk"))
             continue
 
-        quote = normalize_whitespace(citation.quote)
+        quote = normalize_for_matching(citation.quote)
         if len(quote) < MIN_QUOTE_CHARS:
             invalid.append(InvalidCitation(citation=citation, reason="empty_quote"))
             continue

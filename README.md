@@ -246,9 +246,10 @@ Golden files are local and gitignored. They are not committed with the project.
 - Unanswerable items use `"answerable": false` and an empty `evidence` list.
 
 Evidence mapping first looks for an exact case-insensitive, whitespace-normalized
-quote. If that fails, it falls back to token coverage with an 80% threshold. This
-allows the same golden item to be evaluated across 400, 800, and 1200-character
-chunkings.
+quote. PDF line-end hyphenation such as `bge-reranker-` followed by `v2-m3` on the
+next line is joined before comparison. If exact matching fails, it falls back to
+token coverage with an 80% threshold. This allows the same golden item to be
+evaluated across 400, 800, and 1200-character chunkings.
 
 ### 2. Run the matrix
 
