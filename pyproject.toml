@@ -1,5 +1,5 @@
 [project]
-name = "rag-eval"
+name = "rag-citations-evals"
 version = "0.1.0"
 description = "A local RAG system with source citations and an evaluation suite"
 readme = "README.md"
