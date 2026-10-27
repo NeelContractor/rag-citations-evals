@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 from rag_eval.api.highlight import highlight_quote_html
@@ -67,3 +69,34 @@ class AskResponse(BaseModel):
             invalid_citation_count=len(response.invalid_citations),
             latency_ms=latency_ms,
         )
+
+
+class DocumentOut(BaseModel):
+    name: str
+    size_bytes: int
+
+
+class DocumentListResponse(BaseModel):
+    documents: list[DocumentOut]
+    total_bytes: int
+
+
+class DocumentUploadResponse(BaseModel):
+    document: DocumentOut
+    documents: int
+    chunks: int
+    table_name: str
+
+
+class EvalRunOut(BaseModel):
+    config: dict[str, Any]
+    metrics: dict[str, Any]
+    errors: int
+
+
+class EvalSummaryOut(BaseModel):
+    available: bool
+    generated_at: str | None = None
+    settings: dict[str, Any] | None = None
+    best: EvalRunOut | None = None
+    runs: list[EvalRunOut] = Field(default_factory=list)

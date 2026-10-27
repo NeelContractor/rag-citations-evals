@@ -125,7 +125,8 @@ Use `--strategy fixed` for plain fixed-size chunking. PDFs always use fixed-size
 chunking and retain page numbers.
 
 The index is replaced when `make ingest` runs. Re-run it after changing documents
-or chunking settings.
+or chunking settings. Documents uploaded from the browser UI are saved under
+`data/docs` and reindexed with the same heading-aware 800/120 defaults.
 
 ## Asking Questions
 
@@ -162,10 +163,18 @@ and the reason.
 make serve
 ```
 
-Open <http://127.0.0.1:8000> for the UI.
+Open <http://127.0.0.1:8000> for the UI. The page includes a latest-evaluation
+summary, a document upload form, and the question box.
 
 - `GET /health` returns `{"status": "ok"}`.
 - `GET /` serves the single-page UI.
+- `GET /evals/latest` returns the latest matrix summary: settings, per-config
+  metrics, total errors, and the best retrieval configuration.
+- `GET /evals/latest/download` downloads `eval_results/latest.json`.
+- `GET /documents` lists the current PDF and Markdown files in `data/docs`.
+- `POST /documents?filename=notes.md` accepts raw file bytes, saves the document,
+  and rebuilds the index. PDF, `.md`, and `.markdown` files are supported; the
+  limit is 20 MB per file.
 - `POST /ask` accepts:
 
 ```json
@@ -183,11 +192,25 @@ curl -s http://127.0.0.1:8000/ask \
   -d '{"question":"What is RAG?","top_k":5,"hybrid":true,"rerank":true}'
 ```
 
+Upload a document from the command line:
+
+```bash
+curl -s -X POST \
+  "http://127.0.0.1:8000/documents?filename=notes.md" \
+  --data-binary @notes.md
+```
+
+The upload endpoint re-embeds the full corpus, so it can take a while on a large
+document set. It rejects duplicate filenames instead of overwriting them. After a
+successful upload, the cached retrievers are cleared and the next question uses the
+new index.
+
 The response contains the answer, refusal status, model, latency, and cited sources
 with the exact quote and highlighted HTML for display.
 
-The API has no authentication. Keep it bound to `127.0.0.1` and do not expose it
-publicly without adding authentication and request limits.
+The API has no authentication. Keep it bound to `127.0.0.1`. The document upload
+endpoint is also unauthenticated, so do not expose it publicly without adding
+authentication, authorization, and request limits.
 
 ## Evaluation
 
@@ -370,6 +393,8 @@ eval_results/            Evaluation output (gitignored)
 - LLM-as-judge scores are approximate and can disagree with human judgment.
 - Heuristic golden drafts are intentionally simple and need review.
 - There is no streaming, authentication, multi-user isolation, or rate limiting.
+  Uploads are global: any user who can reach the API can add a document and change
+  the corpus for everyone.
 - The default free-tier model may change or be unavailable; set
   `OPENROUTER_MODEL` to another OpenRouter model if needed.
 
