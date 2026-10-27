@@ -56,7 +56,7 @@ class GenerationConfig(BaseModel):
 
 class OpenRouterConfig(BaseModel):
     api_key: str = Field(repr=False)
-    model: str = "google/gemma-4-26b-a4b-it:free"
+    model: str = "recursive/flint-v1.0:free"
     base_url: str = "https://openrouter.ai/api/v1"
     timeout: float = Field(default=90.0, gt=0)
     app_name: str = "rag-eval"

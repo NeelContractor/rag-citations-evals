@@ -86,7 +86,7 @@ an 800-character target and 120-character overlap.
 
 ```dotenv
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
+OPENROUTER_MODEL=recursive/flint-v1.0:free
 ```
 
 - `OPENROUTER_API_KEY` is required for generation and LLM judging.
@@ -282,7 +282,7 @@ Common overrides:
 ```bash
 make eval EVAL_CHUNK_SIZES=400,800 EVAL_TOP_K=3
 make eval EVAL_FLAGS="--reuse-index"
-make eval EVAL_FLAGS="--judge-model google/gemma-4-26b-a4b-it:free"
+make eval EVAL_FLAGS="--judge-model recursive/flint-v1.0:free"
 ```
 
 `--reuse-index` skips re-ingestion when the evaluation tables already exist. Use it
