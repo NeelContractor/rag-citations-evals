@@ -91,6 +91,8 @@ OPENROUTER_MODEL=recursive/flint-v1.0:free
 
 - `OPENROUTER_API_KEY` is required for generation and LLM judging.
 - `OPENROUTER_MODEL` is optional; the default is the free-tier model above.
+- `OPENROUTER_MODEL` is read from `.env` for every CLI/eval run and on each API
+  request, so model changes apply without restarting the server.
 - `.env` is gitignored. Never commit API keys.
 
 Other defaults live in `src/rag_eval/config.py`:

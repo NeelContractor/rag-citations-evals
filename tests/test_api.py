@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
-from rag_eval.api.app import create_app
+import rag_eval.api.app as app_module
+from rag_eval.api.app import create_app, get_llm
 from rag_eval.api.highlight import highlight_quote_html
 from rag_eval.generation.citations import VerifiedCitation
 from rag_eval.generation.openrouter import LLMError
@@ -69,6 +72,20 @@ def test_health_endpoint():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_api_reads_openrouter_model_on_each_call(monkeypatch):
+    models = iter(["first/model", "second/model"])
+
+    class FakeConfig:
+        @classmethod
+        def from_env(cls):
+            return SimpleNamespace(model=next(models))
+
+    monkeypatch.setattr(app_module, "OpenRouterConfig", FakeConfig)
+
+    assert get_llm().model == "first/model"
+    assert get_llm().model == "second/model"
 
 
 def test_ask_returns_answer_and_highlighted_sources():

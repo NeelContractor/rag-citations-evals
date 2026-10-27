@@ -29,23 +29,24 @@ def get_embedder() -> Embedder:
     return Embedder(EmbeddingConfig())
 
 
-@lru_cache(maxsize=1)
 def get_llm() -> OpenRouterClient:
     generation = GenerationConfig()
     return OpenRouterClient(OpenRouterConfig.from_env(), generation)
 
 
 @lru_cache(maxsize=4)
-def build_pipeline(hybrid: bool, rerank: bool) -> RagPipeline:
-    generation = GenerationConfig()
+def get_retriever(hybrid: bool, rerank: bool) -> Retriever:
     retrieval = RetrievalConfig(hybrid=hybrid, rerank=rerank)
-    retriever = Retriever(
+    return Retriever(
         StoreConfig(),
         EmbeddingConfig(),
         retrieval,
         embedder=get_embedder(),
     )
-    return RagPipeline(retriever, get_llm(), generation)
+
+
+def build_pipeline(hybrid: bool, rerank: bool) -> RagPipeline:
+    return RagPipeline(get_retriever(hybrid, rerank), get_llm(), GenerationConfig())
 
 
 def create_app(pipeline_factory: PipelineFactory | None = None) -> FastAPI:

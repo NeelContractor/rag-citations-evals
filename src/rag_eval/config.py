@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+DEFAULT_OPENROUTER_MODEL = "recursive/flint-v1.0:free"
+
 
 class ChunkingConfig(BaseModel):
     strategy: Literal["fixed", "heading"] = "fixed"
@@ -56,22 +58,22 @@ class GenerationConfig(BaseModel):
 
 class OpenRouterConfig(BaseModel):
     api_key: str = Field(repr=False)
-    model: str = "recursive/flint-v1.0:free"
+    model: str = DEFAULT_OPENROUTER_MODEL
     base_url: str = "https://openrouter.ai/api/v1"
     timeout: float = Field(default=90.0, gt=0)
     app_name: str = "rag-eval"
 
     @classmethod
     def from_env(cls, env_path: Path = Path(".env")) -> OpenRouterConfig:
-        load_env(env_path)
+        load_env(env_path, override=True)
         api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY is not set. Add it to .env or the environment.")
-        model = os.getenv("OPENROUTER_MODEL", cls.model_fields["model"].default)
+        model = os.getenv("OPENROUTER_MODEL", "").strip() or DEFAULT_OPENROUTER_MODEL
         return cls(api_key=api_key, model=model)
 
 
-def load_env(path: Path) -> None:
+def load_env(path: Path, override: bool = False) -> None:
     if not path.exists():
         return
     for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -81,5 +83,5 @@ def load_env(path: Path) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key:
-            os.environ.setdefault(key, value)
+        if key and (override or key not in os.environ):
+            os.environ[key] = value
