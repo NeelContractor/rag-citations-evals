@@ -14,9 +14,11 @@ class OutputParseError(ValueError):
     pass
 
 
-def parse_llm_answer(raw: str) -> LLMAnswer:
+def extract_json_object(raw: str) -> dict:
     text = raw.strip()
     text = _FENCE.sub("", text).strip()
+    if text.startswith("["):
+        raise OutputParseError("Model output JSON must be an object")
 
     start = text.find("{")
     end = text.rfind("}")
@@ -27,6 +29,13 @@ def parse_llm_answer(raw: str) -> LLMAnswer:
         data = json.loads(text[start : end + 1])
     except json.JSONDecodeError as error:
         raise OutputParseError(f"Model output was not valid JSON: {error}") from error
+    if not isinstance(data, dict):
+        raise OutputParseError("Model output JSON must be an object")
+    return data
+
+
+def parse_llm_answer(raw: str) -> LLMAnswer:
+    data = extract_json_object(raw)
 
     try:
         return LLMAnswer.model_validate(data)

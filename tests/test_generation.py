@@ -82,6 +82,11 @@ def test_parse_rejects_invalid_json():
         parse_llm_answer("I cannot produce JSON today")
 
 
+def test_parse_rejects_non_object_json():
+    with pytest.raises(OutputParseError):
+        parse_llm_answer('[{"answer": "ok"}]')
+
+
 def test_pipeline_returns_verified_citations():
     llm = FakeLLM([valid_response()])
     pipeline = RagPipeline(FakeRetriever([make_chunk()]), llm)
