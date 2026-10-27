@@ -45,6 +45,9 @@ class RagPipeline:
             chunks = self.retriever.search(question)
         else:
             chunks = self.retriever.search(question, top_k=top_k)
+        return self.answer_with_chunks(question, chunks)
+
+    def answer_with_chunks(self, question: str, chunks: list[RetrievedChunk]) -> RagResponse:
         if not chunks:
             return self._refusal(question, [], "no_context")
 

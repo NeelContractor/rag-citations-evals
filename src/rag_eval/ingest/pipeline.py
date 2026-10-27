@@ -25,6 +25,7 @@ def ingest(
     chunking: ChunkingConfig,
     embedding: EmbeddingConfig,
     store: StoreConfig,
+    embedder: Embedder | None = None,
 ) -> IngestStats:
     files = discover_documents(docs_dir)
     if not files:
@@ -47,7 +48,9 @@ def ingest(
     if len(ids) != len(set(ids)):
         raise ValueError("Duplicate chunk_id values generated")
 
-    vectors = Embedder(embedding).embed_documents([chunk.embedding_text for chunk in chunks])
+    vectors = (embedder or Embedder(embedding)).embed_documents(
+        [chunk.embedding_text for chunk in chunks]
+    )
     ChunkStore(store).replace(chunks, vectors)
 
     return IngestStats(
