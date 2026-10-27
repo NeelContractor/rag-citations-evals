@@ -50,6 +50,7 @@ golden: ingest
 		--count $(GOLDEN_COUNT) \
 		--unanswerable $(GOLDEN_UNANSWERABLE) \
 		--mode $(GOLDEN_MODE) \
+		--force \
 		$(if $(GOLDEN_MODEL),--model $(GOLDEN_MODEL),)
 
 eval:
