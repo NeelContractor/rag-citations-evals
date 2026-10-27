@@ -40,8 +40,11 @@ class RagPipeline:
         self.llm = llm
         self.config = config or GenerationConfig()
 
-    def ask(self, question: str) -> RagResponse:
-        chunks = self.retriever.search(question)
+    def ask(self, question: str, top_k: int | None = None) -> RagResponse:
+        if top_k is None:
+            chunks = self.retriever.search(question)
+        else:
+            chunks = self.retriever.search(question, top_k=top_k)
         if not chunks:
             return self._refusal(question, [], "no_context")
 

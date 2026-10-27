@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG Eval</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f5f2;
+        --surface: #ffffff;
+        --text: #1f2421;
+        --muted: #5f6b64;
+        --border: #d9ded9;
+        --accent: #1f6f50;
+        --accent-strong: #16523b;
+        --mark: #ffe08a;
+        --danger: #9b2c2c;
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        line-height: 1.55;
+      }
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 48px 0 64px;
+      }
+      header {
+        margin-bottom: 28px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.5rem);
+        letter-spacing: -0.03em;
+      }
+      header p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 1.02rem;
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: 0 10px 30px rgb(31 36 33 / 5%);
+      }
+      form {
+        display: grid;
+        gap: 14px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 96px;
+        resize: vertical;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+      }
+      textarea:focus,
+      input:focus {
+        outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+        outline-offset: 1px;
+        border-color: var(--accent);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 18px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+      .controls label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      input[type="number"] {
+        width: 64px;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font: inherit;
+        background: #fff;
+        color: var(--text);
+      }
+      input[type="checkbox"] {
+        accent-color: var(--accent);
+      }
+      .spacer {
+        flex: 1;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        padding: 10px 18px;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--accent-strong);
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+      .examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .examples button {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 500;
+        padding: 5px 10px;
+        border-radius: 999px;
+      }
+      .examples button:hover {
+        background: #eef4f0;
+        color: var(--accent-strong);
+      }
+      #status {
+        min-height: 24px;
+        margin: 18px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      #error {
+        margin-top: 18px;
+        padding: 12px 16px;
+        border: 1px solid #e4b4b4;
+        border-radius: 10px;
+        background: #fff5f5;
+        color: var(--danger);
+        white-space: pre-wrap;
+      }
+      #result {
+        display: grid;
+        gap: 18px;
+        margin-top: 18px;
+      }
+      #result[hidden] {
+        display: none;
+      }
+      .answer-card h2,
+      .sources h2 {
+        margin: 0 0 10px;
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .answer-text {
+        margin: 0;
+        font-size: 1.08rem;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .refusal,
+      .invalid {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      .refusal {
+        background: #fff7e6;
+        border: 1px solid #ecd39a;
+      }
+      .invalid {
+        background: #fff5f5;
+        border: 1px solid #e4b4b4;
+        color: var(--danger);
+      }
+      .refusal[hidden],
+      .invalid[hidden] {
+        display: none;
+      }
+      .sources {
+        margin-top: 4px;
+      }
+      .source {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        background: #fcfcfa;
+      }
+      .source + .source {
+        margin-top: 10px;
+      }
+      .source-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 12px;
+        margin-bottom: 8px;
+      }
+      .source-index {
+        display: inline-grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #e6efe9;
+        color: var(--accent-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .source-title {
+        font-weight: 650;
+      }
+      .source-meta {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .source-body {
+        color: #33403a;
+        font-size: 0.94rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      mark {
+        background: var(--mark);
+        color: inherit;
+        padding: 0 2px;
+        border-radius: 3px;
+      }
+      .source-quote {
+        margin: 10px 0 0;
+        padding-left: 12px;
+        border-left: 3px solid var(--accent);
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      .source-quote span {
+        color: var(--text);
+      }
+      footer {
+        margin-top: 34px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-align: center;
+      }
+      @media (max-width: 560px) {
+        main {
+          padding-top: 28px;
+        }
+        .panel {
+          padding: 16px;
+        }
+        .spacer {
+          display: none;
+        }
+        button[type="submit"] {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>RAG Eval</h1>
+        <p>Ask your local corpus. Every answer must cite verified source spans.</p>
+      </header>
+
+      <section class="panel" aria-label="Ask a question">
+        <form id="ask-form">
+          <label for="question" class="sr-only">Question</label>
+          <textarea
+            id="question"
+            name="question"
+            placeholder="Ask a question about the documents in data/docs..."
+            maxlength="2000"
+            required
+          ></textarea>
+          <div class="controls">
+            <label for="top-k">Top k <input id="top-k" type="number" min="1" max="20" value="5" /></label>
+            <label><input id="hybrid" type="checkbox" /> Hybrid BM25</label>
+            <label><input id="rerank" type="checkbox" /> Rerank</label>
+            <span class="spacer"></span>
+            <button id="submit" type="submit">Ask</button>
+          </div>
+        </form>
+        <div class="examples" aria-label="Example questions">
+          <button type="button" data-question="What is retrieval-augmented generation?">What is RAG?</button>
+          <button type="button" data-question="Why are citations important?">Why cite sources?</button>
+          <button type="button" data-question="What are the local hardware constraints?">Local constraints</button>
+        </div>
+      </section>
+
+      <p id="status" role="status" aria-live="polite"></p>
+      <div id="error" hidden></div>
+
+      <section id="result" hidden>
+        <article class="panel answer-card">
+          <h2>Answer</h2>
+          <p class="answer-text" id="answer"></p>
+          <div class="refusal" id="refusal" hidden></div>
+          <div class="invalid" id="invalid" hidden></div>
+          <div class="meta">
+            <span id="model"></span>
+            <span id="latency"></span>
+            <span id="source-count"></span>
+          </div>
+        </article>
+
+        <article class="panel sources">
+          <h2>Verified sources</h2>
+          <div id="sources"></div>
+        </article>
+      </section>
+
+      <footer>Answers are generated from retrieved context. Check the cited spans before trusting them.</footer>
+    </main>
+
+    <script>
+      const form = document.querySelector("#ask-form");
+      const questionInput = document.querySelector("#question");
+      const topKInput = document.querySelector("#top-k");
+      const hybridInput = document.querySelector("#hybrid");
+      const rerankInput = document.querySelector("#rerank");
+      const submitButton = document.querySelector("#submit");
+      const statusEl = document.querySelector("#status");
+      const errorEl = document.querySelector("#error");
+      const resultEl = document.querySelector("#result");
+      const answerEl = document.querySelector("#answer");
+      const refusalEl = document.querySelector("#refusal");
+      const invalidEl = document.querySelector("#invalid");
+      const modelEl = document.querySelector("#model");
+      const latencyEl = document.querySelector("#latency");
+      const sourceCountEl = document.querySelector("#source-count");
+      const sourcesEl = document.querySelector("#sources");
+
+      document.querySelectorAll("[data-question]").forEach((button) => {
+        button.addEventListener("click", () => {
+          questionInput.value = button.dataset.question;
+          questionInput.focus();
+        });
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const question = questionInput.value.trim();
+        if (!question) {
+          return;
+        }
+
+        setLoading(true);
+        hideError();
+        resultEl.hidden = true;
+        statusEl.textContent = "Retrieving context and asking the model...";
+
+        try {
+          const response = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question,
+              top_k: Number(topKInput.value) || 5,
+              hybrid: hybridInput.checked,
+              rerank: rerankInput.checked,
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            showError(data.detail || `Request failed with status ${response.status}`);
+            return;
+          }
+          render(data);
+          statusEl.textContent = "";
+        } catch (error) {
+          showError(`Could not reach the API: ${error}`);
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      questionInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          form.requestSubmit();
+        }
+      });
+
+      function setLoading(loading) {
+        submitButton.disabled = loading;
+        submitButton.textContent = loading ? "Asking..." : "Ask";
+      }
+
+      function hideError() {
+        errorEl.hidden = true;
+        errorEl.textContent = "";
+      }
+
+      function showError(message) {
+        errorEl.hidden = false;
+        errorEl.textContent = message;
+        statusEl.textContent = "";
+      }
+
+      function render(data) {
+        resultEl.hidden = false;
+        answerEl.textContent = data.answer;
+        modelEl.textContent = data.model;
+        latencyEl.textContent = `${Math.round(data.latency_ms)} ms`;
+        sourceCountEl.textContent = `${data.sources.length} verified source${
+          data.sources.length === 1 ? "" : "s"
+        }`;
+
+        refusalEl.hidden = !data.refused;
+        if (data.refused) {
+          refusalEl.textContent = `Refused: ${formatRefusal(data.refusal_reason)}`;
+        }
+
+        invalidEl.hidden = !data.invalid_citation_count;
+        if (data.invalid_citation_count) {
+          invalidEl.textContent = `Dropped ${data.invalid_citation_count} citation${
+            data.invalid_citation_count === 1 ? "" : "s"
+          } that did not match the source text.`;
+        }
+
+        sourcesEl.replaceChildren();
+        if (!data.sources.length) {
+          const empty = document.createElement("p");
+          empty.className = "source-meta";
+          empty.textContent = data.refused ? "No sources cited." : "No verified sources returned.";
+          sourcesEl.append(empty);
+          return;
+        }
+
+        data.sources.forEach((source, index) => {
+          const card = document.createElement("article");
+          card.className = "source";
+
+          const head = document.createElement("div");
+          head.className = "source-head";
+
+          const number = document.createElement("span");
+          number.className = "source-index";
+          number.textContent = String(index + 1);
+
+          const title = document.createElement("span");
+          title.className = "source-title";
+          title.textContent = source.doc;
+
+          const meta = document.createElement("span");
+          meta.className = "source-meta";
+          const location = source.page ? `page ${source.page}` : "no page";
+          const heading = source.heading ? ` · ${source.heading}` : "";
+          const score = typeof source.score === "number" ? ` · score ${source.score.toFixed(3)}` : "";
+          meta.textContent = `${location}${heading}${score}`;
+
+          head.append(number, title, meta);
+
+          const body = document.createElement("div");
+          body.className = "source-body";
+          body.innerHTML = source.highlighted_html;
+
+          const quote = document.createElement("p");
+          quote.className = "source-quote";
+          quote.textContent = "Cited quote: ";
+          const quoteText = document.createElement("span");
+          quoteText.textContent = source.quote;
+          quote.append(quoteText);
+
+          card.append(head, body, quote);
+          sourcesEl.append(card);
+        });
+      }
+
+      function formatRefusal(reason) {
+        if (reason === "no_context") {
+          return "no relevant context was retrieved.";
+        }
+        if (reason === "no_valid_citations") {
+          return "the model returned no citation that could be verified.";
+        }
+        if (reason === "model_refusal") {
+          return "the sources did not contain the answer.";
+        }
+        return reason || "the answer was not supported by verified sources.";
+      }
+    </script>
+  </body>
+</html>
