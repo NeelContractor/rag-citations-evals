@@ -11,7 +11,7 @@ from rag_eval.config import (
     ChunkingConfig,
     EmbeddingConfig,
     GenerationConfig,
-    OpenRouterConfig,
+    LLMConfig,
     RetrievalConfig,
     StoreConfig,
 )
@@ -28,7 +28,7 @@ from rag_eval.eval.metrics import (
     reciprocal_rank,
     refusal_rate,
 )
-from rag_eval.generation.openrouter import LLMError, OpenRouterClient
+from rag_eval.generation.openrouter import LLMClient, LLMError
 from rag_eval.generation.pipeline import GenerationError, RagPipeline
 from rag_eval.ingest.embedder import Embedder
 from rag_eval.ingest.pipeline import ingest
@@ -75,16 +75,16 @@ def run_evaluation(
     reranker = LateInteractionReranker(RetrievalConfig().rerank_model, embedding.cache_dir)
     generation = GenerationConfig()
 
-    llm: OpenRouterClient | None = None
+    llm: LLMClient | None = None
     judge: FaithfulnessJudge | None = None
     if not retrieval_only:
-        openrouter = OpenRouterConfig.from_env()
-        llm = OpenRouterClient(openrouter, generation)
+        llm_config = LLMConfig.from_env()
+        llm = LLMClient(llm_config, generation)
         judge_config = (
-            openrouter.model_copy(update={"model": judge_model}) if judge_model else openrouter
+            llm_config.model_copy(update={"model": judge_model}) if judge_model else llm_config
         )
         judge = FaithfulnessJudge(
-            OpenRouterClient(
+            LLMClient(
                 judge_config,
                 GenerationConfig(temperature=0.0, max_tokens=500),
             )
@@ -191,7 +191,7 @@ def _run_config(
     embedding: EmbeddingConfig,
     embedder: Embedder,
     reranker: LateInteractionReranker,
-    llm: OpenRouterClient | None,
+    llm: LLMClient | None,
     judge: FaithfulnessJudge | None,
     generation: GenerationConfig,
     top_k: int,
@@ -515,8 +515,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     except (FileNotFoundError, ValueError) as error:
         message = str(error)
-        if "OPENROUTER_API_KEY" in message:
-            message += "\nSet the key, or use `make eval EVAL_FLAGS=--retrieval-only`."
+        if "No LLM API key is set" in message:
+            message += "\nSet an API key, or use `make eval EVAL_FLAGS=--retrieval-only`."
         raise SystemExit(message) from error
     return 0
 

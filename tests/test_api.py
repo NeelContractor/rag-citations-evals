@@ -305,7 +305,7 @@ def test_upload_rejects_document_without_extractable_text(tmp_path):
     assert not (docs / "blank.md").exists()
 
 
-def test_api_reads_openrouter_model_on_each_call(monkeypatch):
+def test_api_reads_llm_model_on_each_call(monkeypatch):
     models = iter(["first/model", "second/model"])
 
     class FakeConfig:
@@ -313,7 +313,7 @@ def test_api_reads_openrouter_model_on_each_call(monkeypatch):
         def from_env(cls):
             return SimpleNamespace(model=next(models))
 
-    monkeypatch.setattr(app_module, "OpenRouterConfig", FakeConfig)
+    monkeypatch.setattr(app_module, "LLMConfig", FakeConfig)
 
     assert get_llm().model == "first/model"
     assert get_llm().model == "second/model"

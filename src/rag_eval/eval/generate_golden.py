@@ -5,10 +5,10 @@ import random
 import re
 from pathlib import Path
 
-from rag_eval.config import GenerationConfig, OpenRouterConfig
+from rag_eval.config import GenerationConfig, LLMConfig
 from rag_eval.eval.golden import Evidence, GoldenItem, load_chunks, save_golden
 from rag_eval.generation.citations import REFUSAL_ANSWER, normalize_whitespace, quote_in_chunk
-from rag_eval.generation.openrouter import LLMError, OpenRouterClient
+from rag_eval.generation.openrouter import LLMClient, LLMError
 from rag_eval.generation.output import OutputParseError, extract_json_object
 from rag_eval.retrieval.types import RetrievedChunk
 
@@ -144,7 +144,7 @@ def _items_from_response(
 
 def generate_with_llm(
     chunks: list[RetrievedChunk],
-    llm: OpenRouterClient,
+    llm: LLMClient,
     batch_size: int = 4,
     log=print,
 ) -> list[GoldenItem]:
@@ -185,7 +185,7 @@ def build_golden(
     chunks: list[RetrievedChunk],
     count: int,
     unanswerable_count: int,
-    llm: OpenRouterClient | None = None,
+    llm: LLMClient | None = None,
     batch_size: int = 4,
     seed: int = 13,
     log=print,
@@ -245,18 +245,18 @@ def main(argv: list[str] | None = None) -> int:
     if not chunks:
         raise SystemExit("The index is empty. Run `make ingest` first.")
 
-    llm: OpenRouterClient | None = None
+    llm: LLMClient | None = None
     if args.mode != "heuristic":
         try:
-            config = OpenRouterConfig.from_env()
+            config = LLMConfig.from_env()
         except ValueError as error:
             if args.mode == "llm":
                 raise SystemExit(str(error)) from error
-            print("No OPENROUTER_API_KEY found; falling back to heuristic mode.")
+            print("No LLM API key found; falling back to heuristic mode.")
         else:
             if args.model:
                 config = config.model_copy(update={"model": args.model})
-            llm = OpenRouterClient(
+            llm = LLMClient(
                 config,
                 GenerationConfig(temperature=0.2, max_tokens=1400),
             )

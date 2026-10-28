@@ -6,7 +6,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-DEFAULT_OPENROUTER_MODEL = "recursive/flint-v1.0:free"
+DEFAULT_OPENROUTER_MODEL = "openai/gpt-oss-20b"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+Provider = Literal["openrouter", "groq"]
 
 
 class ChunkingConfig(BaseModel):
@@ -56,21 +60,91 @@ class GenerationConfig(BaseModel):
     require_citations: bool = True
 
 
-class OpenRouterConfig(BaseModel):
+class LLMConfig(BaseModel):
     api_key: str = Field(repr=False)
     model: str = DEFAULT_OPENROUTER_MODEL
-    base_url: str = "https://openrouter.ai/api/v1"
+    base_url: str = OPENROUTER_BASE_URL
     timeout: float = Field(default=90.0, gt=0)
     app_name: str = "rag-eval"
+    provider: Provider = "openrouter"
+
+    @property
+    def provider_label(self) -> str:
+        return "Groq" if self.provider == "groq" else "OpenRouter"
 
     @classmethod
-    def from_env(cls, env_path: Path = Path(".env")) -> OpenRouterConfig:
+    def from_env(cls, env_path: Path = Path(".env")) -> LLMConfig:
         load_env(env_path, override=True)
-        api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        provider = _detect_provider()
+        api_key = _provider_api_key(provider)
         if not api_key:
-            raise ValueError("OPENROUTER_API_KEY is not set. Add it to .env or the environment.")
-        model = os.getenv("OPENROUTER_MODEL", "").strip() or DEFAULT_OPENROUTER_MODEL
-        return cls(api_key=api_key, model=model)
+            raise ValueError(
+                "No LLM API key is set. Set OPENROUTER_API_KEY for OpenRouter, "
+                "GROQ_API_KEY for Groq, or LLM_API_KEY for a custom endpoint."
+            )
+        return cls(
+            api_key=api_key,
+            model=_provider_model(provider),
+            base_url=_provider_base_url(provider),
+            provider=provider,
+        )
+
+
+def _env(name: str) -> str:
+    return os.getenv(name, "").strip()
+
+
+def _first_env(*names: str) -> str:
+    for name in names:
+        value = _env(name)
+        if value:
+            return value
+    return ""
+
+
+def _detect_provider() -> Provider:
+    configured = _env("LLM_PROVIDER").casefold()
+    if configured:
+        if configured not in {"openrouter", "groq"}:
+            raise ValueError("LLM_PROVIDER must be either 'openrouter' or 'groq'.")
+        return configured
+
+    base_url = _first_env("LLM_BASE_URL", "GROQ_BASE_URL", "OPENROUTER_BASE_URL")
+    if "groq.com" in base_url.casefold():
+        return "groq"
+    if _env("GROQ_API_KEY") and not _env("OPENROUTER_API_KEY"):
+        return "groq"
+    return "openrouter"
+
+
+def _provider_api_key(provider: Provider) -> str:
+    if provider == "groq":
+        return _first_env("LLM_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY")
+    return _first_env("LLM_API_KEY", "OPENROUTER_API_KEY")
+
+
+def _provider_model(provider: Provider) -> str:
+    if provider == "groq":
+        return _first_env("LLM_MODEL", "GROQ_MODEL", "OPENROUTER_MODEL") or DEFAULT_GROQ_MODEL
+    return _first_env("LLM_MODEL", "OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL
+
+
+def _provider_base_url(provider: Provider) -> str:
+    configured = _first_env("LLM_BASE_URL")
+    if configured:
+        return configured
+    if provider == "groq":
+        groq_url = _first_env("GROQ_BASE_URL")
+        if groq_url:
+            return groq_url
+        legacy_url = _first_env("OPENROUTER_BASE_URL")
+        if "groq.com" in legacy_url.casefold():
+            return legacy_url
+        return GROQ_BASE_URL
+    return _first_env("OPENROUTER_BASE_URL") or OPENROUTER_BASE_URL
+
+
+OpenRouterConfig = LLMConfig
 
 
 def load_env(path: Path, override: bool = False) -> None:

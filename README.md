@@ -6,7 +6,7 @@ includes an evaluation suite for measuring retrieval quality, citation quality, 
 answer faithfulness.
 
 The retrieval stack runs locally on CPU. Generation and optional LLM judging use
-OpenRouter.
+OpenRouter, Groq, or another OpenAI-compatible chat-completions endpoint.
 
 ## Features
 
@@ -34,7 +34,7 @@ question -> query embedding -> vector search -+-> BM25 -> RRF
                                               |
                                         top-k chunks
                                               |
-                                   OpenRouter generation
+                                   LLM generation
                                               |
                               strict JSON + citation checks
                                               |
@@ -49,9 +49,10 @@ citations are required, the system returns a refusal instead of an unsupported a
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/)
-- Internet access for OpenRouter generation
+- Internet access for generation
 - A few hundred MB of local model downloads on first use
-- OpenRouter API key for asking questions and running full evaluations
+- An OpenRouter, Groq, or other OpenAI-compatible API key for asking questions
+  and running full evaluations
 
 Ingestion, retrieval-only evaluation, and heuristic golden-set generation do not
 call an LLM.
@@ -62,7 +63,7 @@ call an LLM.
 cd RAG_Eval
 
 cp .env.example .env
-# Edit .env and set OPENROUTER_API_KEY
+# Edit .env and set an OpenRouter or Groq API key
 
 make setup
 ```
@@ -84,21 +85,55 @@ an 800-character target and 120-character overlap.
 
 `.env` is loaded automatically by the CLI, API, and evaluation commands.
 
+OpenRouter:
+
 ```dotenv
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=recursive/flint-v1.0:free
+OPENROUTER_MODEL=openai/gpt-oss-20b
 ```
 
-- `OPENROUTER_API_KEY` is required for generation and LLM judging.
-- `OPENROUTER_MODEL` is optional; the default is the free-tier model above.
-- `OPENROUTER_MODEL` is read from `.env` for every CLI/eval run and on each API
-  request, so model changes apply without restarting the server.
+Groq:
+
+```dotenv
+GROQ_API_KEY=your-key
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+Groq using the OpenRouter variable names is also supported:
+
+```dotenv
+OPENROUTER_API_KEY=your-groq-key
+OPENROUTER_MODEL=llama-3.3-70b-versatile
+OPENROUTER_BASE_URL=https://api.groq.com/openai/v1
+```
+
+Generic OpenAI-compatible configuration:
+
+```dotenv
+LLM_PROVIDER=groq
+LLM_API_KEY=your-key
+LLM_MODEL=llama-3.3-70b-versatile
+LLM_BASE_URL=https://api.groq.com/openai/v1
+```
+
+- `LLM_PROVIDER` can be `openrouter` or `groq`. If unset, a Groq base URL or a
+  `GROQ_API_KEY` without an `OPENROUTER_API_KEY` selects Groq; otherwise OpenRouter
+  is used. Set `LLM_PROVIDER=groq` explicitly when both keys are present.
+- `LLM_API_KEY`, `LLM_MODEL`, and `LLM_BASE_URL` override provider-specific values.
+- `GROQ_BASE_URL` is optional and defaults to `https://api.groq.com/openai/v1`.
+- `OPENROUTER_BASE_URL` is optional and defaults to
+  `https://openrouter.ai/api/v1`.
+- Provider/model settings are read from `.env` for every CLI/eval run and on each
+  API request, so changes apply without restarting the server.
 - `.env` is gitignored. Never commit API keys.
 
 Other defaults live in `src/rag_eval/config.py`:
 
 | Setting | Default |
 | --- | --- |
+| Provider | `openrouter` |
+| OpenRouter model | `openai/gpt-oss-20b` |
+| Groq model | `llama-3.3-70b-versatile` |
 | Embedding model | `BAAI/bge-small-en-v1.5` |
 | Reranker | `answerdotai/answerai-colbert-small-v1` |
 | Vector store | `.lancedb/chunks` |
@@ -220,7 +255,7 @@ reviewed golden set.
 ### 1. Create a draft golden set
 
 ```bash
-# Uses OPENROUTER_MODEL when a key is available; otherwise falls back to heuristics.
+# Uses the configured LLM when a key is available; otherwise falls back to heuristics.
 make golden
 
 # Force heuristic generation:
@@ -361,7 +396,7 @@ src/rag_eval/
   ask.py                 Ask CLI
   ingest/                Loaders, chunking, embeddings, LanceDB store
   retrieval/             Vector search, BM25/RRF, reranker
-  generation/            Prompts, OpenRouter client, citation verification
+  generation/            Prompts, OpenAI-compatible LLM client, citation verification
   api/                   FastAPI app, response models, UI
   eval/                  Golden schema, generation, metrics, judge, matrix runner
 tests/                   Unit and API tests
@@ -374,7 +409,7 @@ eval_results/            Evaluation output (gitignored)
 ## Design Notes
 
 - **Local retrieval, remote generation.** Embeddings and reranking run on CPU; only
-  retrieved chunks and the question are sent to OpenRouter.
+  retrieved chunks and the question are sent to the configured LLM provider.
 - **Quotes are verified, not trusted.** Model-provided citations are checked against
   the exact retrieved chunk text. Invalid citations are dropped and counted.
 - **Refusal is a first-class result.** Missing context or no valid citations produces
@@ -395,13 +430,14 @@ eval_results/            Evaluation output (gitignored)
 - There is no streaming, authentication, multi-user isolation, or rate limiting.
   Uploads are global: any user who can reach the API can add a document and change
   the corpus for everyone.
-- The default free-tier model may change or be unavailable; set
-  `OPENROUTER_MODEL` to another OpenRouter model if needed.
+- The default free-tier model may change or be unavailable; set `OPENROUTER_MODEL`
+  or switch to another provider/model if needed.
 
 ## Troubleshooting
 
-**`OPENROUTER_API_KEY is not set`**
-Set it in `.env` or the environment. Use `--retrieval-only` for evaluation without it.
+**`No LLM API key is set`**
+Set `OPENROUTER_API_KEY`, `GROQ_API_KEY`, or `LLM_API_KEY` in `.env` or the
+environment. Use `--retrieval-only` for evaluation without a key.
 
 **`Vector store not found` or `Table 'chunks' not found`**
 Run `make ingest` and confirm documents exist under `data/docs`.
@@ -414,6 +450,7 @@ Run `make golden`, review `data/evals/golden_draft.jsonl`, and copy it to
 The embedding and reranker models download on first use and are cached under
 `.cache/fastembed`.
 
-**OpenRouter 429 or 5xx errors**
-Free-tier rate limits can be tight. Retry later, use a smaller `--limit`, or choose
-another model with `--model`/`OPENROUTER_MODEL`.
+**`OpenRouter returned HTTP 429` or `Groq returned HTTP 429`**
+Free-tier rate limits can be tight. Retry later, use a smaller `--limit`, switch
+providers with `LLM_PROVIDER`, or choose another model with
+`--model`/`OPENROUTER_MODEL`/`GROQ_MODEL`.

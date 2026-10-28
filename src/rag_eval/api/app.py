@@ -25,11 +25,11 @@ from rag_eval.config import (
     ChunkingConfig,
     EmbeddingConfig,
     GenerationConfig,
-    OpenRouterConfig,
+    LLMConfig,
     RetrievalConfig,
     StoreConfig,
 )
-from rag_eval.generation.openrouter import LLMError, OpenRouterClient
+from rag_eval.generation.openrouter import LLMClient, LLMError
 from rag_eval.generation.pipeline import GenerationError, RagPipeline
 from rag_eval.ingest.embedder import Embedder
 from rag_eval.ingest.loaders import SUPPORTED_SUFFIXES, discover_documents, load_document
@@ -46,9 +46,9 @@ def get_embedder() -> Embedder:
     return Embedder(EmbeddingConfig())
 
 
-def get_llm() -> OpenRouterClient:
+def get_llm() -> LLMClient:
     generation = GenerationConfig()
-    return OpenRouterClient(OpenRouterConfig.from_env(), generation)
+    return LLMClient(LLMConfig.from_env(), generation)
 
 
 @lru_cache(maxsize=4)

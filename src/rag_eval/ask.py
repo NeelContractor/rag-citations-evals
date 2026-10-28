@@ -6,11 +6,11 @@ import json
 from rag_eval.config import (
     EmbeddingConfig,
     GenerationConfig,
-    OpenRouterConfig,
+    LLMConfig,
     RetrievalConfig,
     StoreConfig,
 )
-from rag_eval.generation.openrouter import LLMError, OpenRouterClient
+from rag_eval.generation.openrouter import LLMClient, LLMError
 from rag_eval.generation.pipeline import GenerationError, RagPipeline
 from rag_eval.retrieval.retriever import Retriever
 
@@ -33,9 +33,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        openrouter = OpenRouterConfig.from_env()
+        llm_config = LLMConfig.from_env()
         if args.model:
-            openrouter = openrouter.model_copy(update={"model": args.model})
+            llm_config = llm_config.model_copy(update={"model": args.model})
         retrieval = RetrievalConfig(
             top_k=args.top_k,
             candidate_k=args.candidate_k,
@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
         retriever = Retriever(store, embedding, retrieval)
         pipeline = RagPipeline(
             retriever,
-            OpenRouterClient(openrouter, generation),
+            LLMClient(llm_config, generation),
             generation,
         )
         response = pipeline.ask(args.question)
