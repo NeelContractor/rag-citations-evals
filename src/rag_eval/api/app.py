@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from rag_eval.api.models import (
@@ -179,6 +180,8 @@ def create_app(
     ingest_service: DocumentIngestor | None = None,
 ) -> FastAPI:
     app = FastAPI(title="RAG Eval", version="0.2.0")
+    assets_dir = Path(__file__).parent / "public"
+    app.mount("/static", StaticFiles(directory=assets_dir), name="static")
     factory = pipeline_factory or build_pipeline
     docs_dir = documents_dir or Path("data/docs")
     database_path = db_path or StoreConfig().db_path
@@ -189,6 +192,10 @@ def create_app(
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
         return files("rag_eval.api").joinpath("index.html").read_text(encoding="utf-8")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> FileResponse:
+        return FileResponse(assets_dir / "favicon.ico", media_type="image/x-icon")
 
     @app.get("/health")
     def health() -> dict[str, str]:

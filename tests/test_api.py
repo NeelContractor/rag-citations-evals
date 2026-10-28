@@ -69,6 +69,23 @@ def test_ui_is_served():
     assert "Verified sources" in response.text
     assert "Latest run" in response.text
     assert "Upload and index" in response.text
+    assert "/static/favicon-32x32.png" in response.text
+
+
+def test_favicon_assets_are_served():
+    client = make_client(FakePipeline())
+
+    favicon = client.get("/favicon.ico")
+    assert favicon.status_code == 200
+    assert favicon.headers["content-type"].startswith("image/")
+
+    image = client.get("/static/favicon-32x32.png")
+    assert image.status_code == 200
+    assert image.headers["content-type"] == "image/png"
+
+    manifest = client.get("/static/site.webmanifest")
+    assert manifest.status_code == 200
+    assert manifest.json()["icons"][0]["src"] == "/static/android-chrome-192x192.png"
 
 
 def test_health_endpoint():
