@@ -91,7 +91,7 @@ def test_from_env_accepts_openrouter_style_groq_config(tmp_path, monkeypatch):
         "environ",
         {
             "OPENROUTER_API_KEY": "groq-key",
-            "OPENROUTER_MODEL": "llama-3.3-70b-versatile",
+            "OPENROUTER_MODEL": "openai/gpt-oss-120b",
             "OPENROUTER_BASE_URL": GROQ_BASE_URL,
         },
     )
@@ -100,7 +100,7 @@ def test_from_env_accepts_openrouter_style_groq_config(tmp_path, monkeypatch):
 
     assert config.provider == "groq"
     assert config.api_key == "groq-key"
-    assert config.model == "llama-3.3-70b-versatile"
+    assert config.model == "openai/gpt-oss-120b"
     assert config.base_url == GROQ_BASE_URL
 
 

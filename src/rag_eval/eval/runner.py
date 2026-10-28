@@ -61,6 +61,7 @@ def run_evaluation(
     candidate_k: int,
     output_dir: Path,
     retrieval_only: bool = False,
+    model: str | None = None,
     judge_model: str | None = None,
     limit: int | None = None,
     reuse_index: bool = False,
@@ -77,8 +78,12 @@ def run_evaluation(
 
     llm: LLMClient | None = None
     judge: FaithfulnessJudge | None = None
+    model_name: str | None = None
     if not retrieval_only:
         llm_config = LLMConfig.from_env()
+        if model:
+            llm_config = llm_config.model_copy(update={"model": model})
+        model_name = llm_config.model
         llm = LLMClient(llm_config, generation)
         judge_config = (
             llm_config.model_copy(update={"model": judge_model}) if judge_model else llm_config
@@ -161,6 +166,7 @@ def run_evaluation(
             "top_k": top_k,
             "candidate_k": candidate_k,
             "retrieval_only": retrieval_only,
+            "model": model_name,
             "judge_model": judge_model,
             "question_count": len(items),
             "answerable_count": sum(1 for item in items if item.answerable),
@@ -481,6 +487,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--strategy", choices=["heading", "fixed"], default="heading")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--candidate-k", type=int, default=20)
+    parser.add_argument("--model", default=None)
     parser.add_argument("--judge-model", default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--reuse-index", action="store_true")
@@ -509,6 +516,7 @@ def main(argv: list[str] | None = None) -> int:
             candidate_k=args.candidate_k,
             output_dir=args.output,
             retrieval_only=args.retrieval_only,
+            model=args.model,
             judge_model=args.judge_model,
             limit=args.limit,
             reuse_index=args.reuse_index,

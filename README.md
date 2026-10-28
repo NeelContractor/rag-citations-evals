@@ -96,14 +96,14 @@ Groq:
 
 ```dotenv
 GROQ_API_KEY=your-key
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
 Groq using the OpenRouter variable names is also supported:
 
 ```dotenv
 OPENROUTER_API_KEY=your-groq-key
-OPENROUTER_MODEL=llama-3.3-70b-versatile
+OPENROUTER_MODEL=openai/gpt-oss-20b
 OPENROUTER_BASE_URL=https://api.groq.com/openai/v1
 ```
 
@@ -112,7 +112,7 @@ Generic OpenAI-compatible configuration:
 ```dotenv
 LLM_PROVIDER=groq
 LLM_API_KEY=your-key
-LLM_MODEL=llama-3.3-70b-versatile
+LLM_MODEL=openai/gpt-oss-20b
 LLM_BASE_URL=https://api.groq.com/openai/v1
 ```
 
@@ -133,7 +133,7 @@ Other defaults live in `src/rag_eval/config.py`:
 | --- | --- |
 | Provider | `openrouter` |
 | OpenRouter model | `openai/gpt-oss-20b` |
-| Groq model | `llama-3.3-70b-versatile` |
+| Groq model | `openai/gpt-oss-20b` |
 | Embedding model | `BAAI/bge-small-en-v1.5` |
 | Reranker | `answerdotai/answerai-colbert-small-v1` |
 | Vector store | `.lancedb/chunks` |
@@ -343,8 +343,13 @@ Common overrides:
 ```bash
 make eval EVAL_CHUNK_SIZES=400,800 EVAL_TOP_K=3
 make eval EVAL_FLAGS="--reuse-index"
-make eval EVAL_FLAGS="--judge-model recursive/flint-v1.0:free"
+make eval EVAL_FLAGS="--limit 5 --chunk-sizes 800 --model openai/gpt-oss-20b"
+make eval EVAL_FLAGS="--judge-model openai/gpt-oss-120b"
 ```
+
+`--model` overrides the configured generation model; `--judge-model` overrides the
+judge model independently. If `--judge-model` is omitted, the judge uses the
+generation model.
 
 `--reuse-index` skips re-ingestion when the evaluation tables already exist. Use it
 only when the documents and chunking settings have not changed.
@@ -373,8 +378,9 @@ questions that were actually answered and successfully judged; refusals are meas
 separately.
 
 Full evaluations make many LLM calls. Free-tier rate limits and latency can make a
-30-question, 12-configuration run slow. Start with `--retrieval-only`, then use
-`--limit` for a smaller generation smoke test.
+30-question, 12-configuration run slow. Groq's free tier is token-per-minute limited,
+so a full matrix can take hours even with automatic retries. Start with
+`--retrieval-only`, then use `--limit` for a smaller generation smoke test.
 
 ## Development
 
@@ -451,6 +457,7 @@ The embedding and reranker models download on first use and are cached under
 `.cache/fastembed`.
 
 **`OpenRouter returned HTTP 429` or `Groq returned HTTP 429`**
-Free-tier rate limits can be tight. Retry later, use a smaller `--limit`, switch
-providers with `LLM_PROVIDER`, or choose another model with
+Free-tier rate limits can be tight. The client retries 429s using the provider's
+wait hint, but full runs may still be slow. Retry later, use a smaller `--limit`,
+switch providers with `LLM_PROVIDER`, or choose another model with
 `--model`/`OPENROUTER_MODEL`/`GROQ_MODEL`.
